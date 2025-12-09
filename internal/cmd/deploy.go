@@ -39,9 +39,11 @@ func newDeployCommand() *deployCommand {
 	deployCommand.cmd.Flags().StringVar(&deployCommand.args.ServiceOptions.TLSPrivateKeyPath, "tls-private-key-path", "", "Configure custom TLS private key path (PEM format)")
 	deployCommand.cmd.Flags().StringVar(&deployCommand.args.ServiceOptions.ACMECachePath, "tls-acme-cache-path", globalConfig.CertificatePath(), "Location to store ACME assets")
 	deployCommand.cmd.Flags().BoolVar(&deployCommand.args.ServiceOptions.TLSRedirect, "tls-redirect", true, "Redirect HTTP traffic to HTTPS")
+	deployCommand.cmd.Flags().StringVar(&deployCommand.args.ServiceOptions.CanonicalHost, "canonical-host", "", "Redirect all requests to this host (e.g., force root or www)")
 
-	deployCommand.cmd.Flags().DurationVar(&deployCommand.args.DeployTimeout, "deploy-timeout", server.DefaultDeployTimeout, "Maximum time to wait for the new target to become healthy")
-	deployCommand.cmd.Flags().DurationVar(&deployCommand.args.DrainTimeout, "drain-timeout", server.DefaultDrainTimeout, "Maximum time to allow existing connections to drain before removing old target")
+	deployCommand.cmd.Flags().DurationVar(&deployCommand.args.DeploymentOptions.DeployTimeout, "deploy-timeout", server.DefaultDeployTimeout, "Maximum time to wait for the new target to become healthy")
+	deployCommand.cmd.Flags().DurationVar(&deployCommand.args.DeploymentOptions.DrainTimeout, "drain-timeout", server.DefaultDrainTimeout, "Maximum time to allow existing connections to drain before removing old target")
+	deployCommand.cmd.Flags().BoolVar(&deployCommand.args.DeploymentOptions.Force, "force", false, "Skip health checks and force deployment")
 	deployCommand.cmd.Flags().DurationVar(&deployCommand.args.TargetOptions.HealthCheckConfig.Interval, "health-check-interval", server.DefaultHealthCheckInterval, "Interval between health checks")
 	deployCommand.cmd.Flags().DurationVar(&deployCommand.args.TargetOptions.HealthCheckConfig.Timeout, "health-check-timeout", server.DefaultHealthCheckTimeout, "Time each health check must complete in")
 	deployCommand.cmd.Flags().StringVar(&deployCommand.args.TargetOptions.HealthCheckConfig.Path, "health-check-path", server.DefaultHealthCheckPath, "Path to check for health")
@@ -60,8 +62,8 @@ func newDeployCommand() *deployCommand {
 
 	deployCommand.cmd.Flags().StringSliceVar(&deployCommand.args.TargetOptions.LogRequestHeaders, "log-request-header", nil, "Additional request header to log (may be specified multiple times)")
 	deployCommand.cmd.Flags().StringSliceVar(&deployCommand.args.TargetOptions.LogResponseHeaders, "log-response-header", nil, "Additional response header to log (may be specified multiple times)")
-
 	deployCommand.cmd.Flags().BoolVar(&deployCommand.args.TargetOptions.ForwardHeaders, "forward-headers", false, "Forward X-Forwarded headers to target (default false if TLS enabled; otherwise true)")
+	deployCommand.cmd.Flags().BoolVar(&deployCommand.args.TargetOptions.ScopeCookiePaths, "scope-cookie-paths", false, "Scope cookie paths to match path prefix")
 
 	deployCommand.cmd.MarkFlagRequired("target")
 	deployCommand.cmd.MarkFlagsRequiredTogether("tls-certificate-path", "tls-private-key-path")
@@ -104,6 +106,13 @@ func (c *deployCommand) preRun(cmd *cobra.Command, args []string) error {
 
 		if !slices.Contains(c.args.ServiceOptions.PathPrefixes, "/") {
 			return fmt.Errorf("TLS settings must be specified on the root path service")
+		}
+	}
+
+	// Validate canonical host is present in hosts when both are specified
+	if c.args.ServiceOptions.CanonicalHost != "" && len(c.args.ServiceOptions.Hosts) > 0 && c.args.ServiceOptions.Hosts[0] != "" {
+		if !slices.Contains(c.args.ServiceOptions.Hosts, c.args.ServiceOptions.CanonicalHost) {
+			return fmt.Errorf("canonical-host '%s' must be present in the hosts list: %v", c.args.ServiceOptions.CanonicalHost, c.args.ServiceOptions.Hosts)
 		}
 	}
 
