@@ -35,6 +35,9 @@ const (
 	PauseWaitActionStopped
 )
 
+// PauseController is used to manage a resource that is temporarily
+// paused because of some reason. For example pausing inflight requests until
+// kamal-proxy is back up again from a quick database migration.
 type PauseController struct {
 	State       PauseState    `json:"state"`
 	StopMessage string        `json:"stop_message"`
@@ -105,6 +108,9 @@ func (p *PauseController) Resume() error {
 	return nil
 }
 
+// Wait returns the pause action and message. In case the state is set to
+// running/stopped it will return immediately. If there's a pause it will wait
+// for a state change or for a timeout.
 func (p *PauseController) Wait() (PauseWaitAction, string) {
 	state, stopMessage, pauseChannel, failChannel := p.getWaitState()
 
@@ -141,6 +147,9 @@ func (p *PauseController) getWaitState() (PauseState, string, chan bool, <-chan 
 	return p.State, p.StopMessage, nil, nil
 }
 
+// setState closes the pause channel if the new state is the pause one
+// and it hasn't been already set.
+// It also updates the current state and message.
 func (p *PauseController) setState(newState PauseState, message string) {
 	p.lock.Lock()
 	defer p.lock.Unlock()

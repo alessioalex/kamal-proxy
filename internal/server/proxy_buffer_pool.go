@@ -2,6 +2,7 @@ package server
 
 import "sync"
 
+// NewBufferPool is used by httputil.ReverseProxy to improve performance.
 func NewBufferPool(bufferSize int64) *BufferPool {
 	return &BufferPool{
 		pool: sync.Pool{

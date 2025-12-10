@@ -14,6 +14,10 @@ type RolloutController struct {
 	Allowlist            []string `json:"allowlist"`
 }
 
+// NewRolloutController will initialize the *RolloutController with the params
+// but also setup the split percentage.
+// It does that by computing the maximum 32-bit hash value and converting it to
+// float64 for precision, based on the percentage param.
 func NewRolloutController(percentage int, allowlist []string) *RolloutController {
 	maxHashValue := float64(uint32(0xFFFFFFFF))
 	percentageSplitPoint := maxHashValue * (float64(percentage) / 100.0)
@@ -25,6 +29,9 @@ func NewRolloutController(percentage int, allowlist []string) *RolloutController
 	}
 }
 
+// RequestUsesRolloutGroup checks if the user is in the rollout group.
+// It does that by checking if he's in the allow list or in the rollout
+// percentage. A cookie is used to determine both things.
 func (rc *RolloutController) RequestUsesRolloutGroup(r *http.Request) bool {
 	splitValue := rc.splitValue(r)
 	if splitValue == "" {

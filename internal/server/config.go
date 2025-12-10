@@ -52,6 +52,7 @@ func (c Config) defaultDataDirectory() string {
 
 	dir := path.Join(home, ".config", "kamal-proxy")
 
+	// 0700 - owner rights
 	err = os.MkdirAll(dir, syscall.S_IRUSR|syscall.S_IWUSR|syscall.S_IXUSR)
 	if err != nil {
 		dir = os.TempDir()

@@ -11,6 +11,8 @@ import (
 
 var registered sync.Once
 
+// CommandHandler exposes *Router via net/rpc
+// (socket path most likely by default to be /tmp/kamal-proxy.sock)
 type CommandHandler struct {
 	rpcListener net.Listener
 	router      *Router
