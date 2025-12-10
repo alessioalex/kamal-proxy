@@ -5,6 +5,11 @@ import (
 	"net/http"
 )
 
+// RequestBufferMiddleware buffers the request based on the Buffer
+// implementation. The maxBytes is the hard limit for buffering and exceeding that
+// will return an error. maxMemBytes represents the limit for individual
+// requests, and in case it's exceeded the rest of the data will be saved on
+// disk.
 type RequestBufferMiddleware struct {
 	maxMemBytes int64
 	maxBytes    int64

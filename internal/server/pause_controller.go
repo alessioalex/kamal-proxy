@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+// PauseState can be running, paused or stopped.
 type PauseState int
 
 const (
@@ -27,6 +28,7 @@ func (ps PauseState) String() string {
 	}
 }
 
+// PauseWaitAction can be proceed, timed out or stopped.
 type PauseWaitAction int
 
 const (
@@ -51,6 +53,8 @@ func NewPauseController() *PauseController {
 	return &PauseController{}
 }
 
+// UnmarshalJSON decodes the json and based on it sets the appropriate state by
+// calling a specific method for each value.
 func (p *PauseController) UnmarshalJSON(data []byte) error {
 	type alias PauseController // Avoid infinite recursion when we call Unmarshal
 	err := json.Unmarshal(data, (*alias)(p))
