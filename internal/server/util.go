@@ -4,6 +4,8 @@ import (
 	"sync"
 )
 
+// PerformConcurrently calls each function in a separate goroutine and waits for
+// them to end.
 func PerformConcurrently(fns ...func()) {
 	var wg sync.WaitGroup
 

@@ -31,6 +31,26 @@ type LoggingMiddleware struct {
 	next      http.Handler
 }
 
+// WithLoggingMiddleware should be called before other middleware because it
+// keeps track of the starting time and it also sets the `loggingRequestContext`
+// for other middleware to be able to manipulate.
+//
+// Other middleware can set the `Service`, `Target` and custom response and
+// requests headers. The custom response and request headers will be logged with
+// the prefixes `resp_` and `req_`.
+//
+// By default the logs will include the following fields automatically:
+// `host`, `port`, `path`, `request_id`, `status`, `service`, `target`,
+// `duration`, `method`, `req_content_length`, `req_content_type`,
+// `resp_content_length`, `resp_content_type`, `client_addr`, `client_port`,
+// `remote_addr`, `user_agent`, `proto`, `scheme`, `query`.
+//
+// To determine the response bytes written, it wraps the original response into
+// another struct and implements all the necessary interfaces
+// (`http.ResponseWriter` along with optional interfaces such as `http.Flusher`
+// and `http.Hijacker`).
+//
+// Apart from logging this middleware also tracks some metrics via Prometheus.
 func WithLoggingMiddleware(logger *slog.Logger, httpPort, httpsPort int, next http.Handler) http.Handler {
 	return &LoggingMiddleware{
 		logger:    logger,
@@ -40,6 +60,8 @@ func WithLoggingMiddleware(logger *slog.Logger, httpPort, httpsPort int, next ht
 	}
 }
 
+// LoggingRequestContext returns a struct that should be used to set the
+// `Service`, `Target`, custom request and response headers that will be logged.
 func LoggingRequestContext(r *http.Request) *loggingRequestContext {
 	lrc, ok := r.Context().Value(contextKeyRequestContext).(*loggingRequestContext)
 	if !ok {
@@ -152,6 +174,17 @@ func (r *loggerResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 
 	con, rw, err := hijacker.Hijack()
 	if err == nil {
+		// 1) Hijacking almost always implies a protocol switch
+		// The most likely reason for the hijack is either WebSockets or CONNECT
+		// tunnels, which both mean "We're no longer speaking HTTP.".
+		// The appropriate status code is the one below.
+		//
+		// 2) After hijacking, the real status code may never be written
+		// `WriteHeader` may never be called, since the handler may manually write
+		// bytes to the socket.
+		//
+		// The logging middleware needs a value for the status code, and this is the
+		// appropriate one considering 1) && 2).
 		r.statusCode = http.StatusSwitchingProtocols
 	}
 	return con, rw, err
